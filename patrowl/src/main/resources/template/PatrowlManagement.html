@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf8" />
+  <!-- everything here will be ignored and replaced by common-layout -->
+</head>
+<body data-lift-content-id="plugin-main">
+  <div id="plugin-main" data-lift="surround?with=common-layout;at=content">
+    <head_merge>
+      <title>Plugin :: Patrowl Security Scan</title>
+      <link rel="stylesheet" type="text/css" href="/toserve/patrowl/patrowl.css" media="screen" data-lift="with-cached-resource">
+      <link rel="stylesheet" type="text/css" href="/toserve/patrowl/toasty.css" media="screen" data-lift="with-cached-resource">
+      <script src="/toserve/patrowl/patrowl-config.js" data-lift="with-cached-resource"></script>
+    </head_merge>
+
+
+    <div class="portlet ui-widget ui-widget-content ui-helper-clearfix arrondis">
+      <div class="inner-portlet">
+        <div class="page-title">User Management Configuration</div>
+        <div class="portlet-content">
+          <div class="col-xs-12 callout-fade callout-warning">
+            <div class="marker">
+              <span class="glyphicon glyphicon-info-sign"></span>
+            </div>
+            <p>
+              This page shows information about Patrowl server integration
+            </p>
+          </div>
+
+          <div id="patrowl-app"></div>
+          <script>
+            var node = document.getElementById("patrowl-app");
+            var app  = Elm.PatrowlConfig.embed(node, { contextPath: contextPath});
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

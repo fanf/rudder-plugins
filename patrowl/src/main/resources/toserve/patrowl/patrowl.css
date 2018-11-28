@@ -1,0 +1,200 @@
+/*
+*************************************************************************************
+* Copyright 2018 Normation SAS
+*************************************************************************************
+*
+* This file is part of Rudder.
+*
+* Rudder is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* In accordance with the terms of section 7 (7. Additional Terms.) of
+* the GNU General Public License version 3, the copyright holders add
+* the following Additional permissions:
+* Notwithstanding to the terms of section 5 (5. Conveying Modified Source
+* Versions) and 6 (6. Conveying Non-Source Forms.) of the GNU General
+* Public License version 3, when you create a Related Module, this
+* Related Module is not considered as a part of the work and may be
+* distributed under the license agreement of your choice.
+* A "Related Module" means a set of sources files including their
+* documentation that, without modification of the Source Code, enables
+* supplementary functions or services in addition to those offered by
+* the Software.
+*
+* Rudder is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with Rudder.  If not, see <http://www.gnu.org/licenses/>.
+
+*
+*************************************************************************************
+*/
+
+/* add you plugin css in that file */
+
+#plugin-main .inner-portlet {
+  padding: 0 15px;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+#user-management-app h3 > button{
+  margin-left: 12px;
+}
+
+#user-management-app h3 > button > span{
+  margin-left: 6px;
+}
+
+#user-management-app .user-list{
+  margin: 15px 0 30px 0;
+}
+
+#user-management-app .user{
+  float: left;
+  border: 1px solid #eaeaea;
+  border-radius: 4px;
+  background: #f7f7f7;
+  padding: 0 10px 10px 10px;
+  box-shadow: 0 5px 10px 0 rgba(0,0,0,0.07);
+  overflow: hidden;
+}
+
+#user-management-app .user h4 {
+  position: relative;
+  margin: 0 0 10px 0;
+  padding: 20px 0 12px 80px;
+  min-height: 45px;
+  border-bottom: 1px solid #eaeaea;
+  font-size: 22px;
+  background-color: #fff;
+}
+
+#user-management-app .user h4 .user-icon {
+  font-size: 50px;
+  position: absolute;
+  top: 2px;
+  left: 15px;
+  color: #ccc;
+}
+
+.auth{
+  background-color : #fff;
+  border-radius    : 40px;
+  padding          : 5px 16px 2px 16px;
+  border           : 1px solid #dedede;
+  float            : left;
+  line-height      : normal;
+  margin           : 0 6px 6px 0;
+}
+
+.user h6{
+  font-size: 12px;
+  font-weight: bold;
+  padding-left: 0px;
+  font-family: sans-serif;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 5;
+  float: left;
+  width: 100%
+}
+
+.user .list-auths{
+  float: left;
+  width: 100%;
+}
+
+.user h6 span{
+  background-color: #f7f7f7;
+  padding-right: 10px;
+}
+
+.user h6:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border: 1px solid #e4e4e4;
+  top: 5px;
+  z-index: -1;
+}
+
+
+//////////
+
+.row.finding-stats > div {
+  margin: 0;
+  padding: 2px;
+}
+
+div.risk-grade { font-size: xx-large; padding: 10px; border-radius: 5px; }
+div.risk-grade-A { background-color: limegreen; }
+div.risk-grade-B { background-color: yellowgreen; }
+div.risk-grade-C { background-color: orange; }
+div.risk-grade-D { background-color: darkorange; }
+div.risk-grade-E { background-color: orangered; }
+div.risk-grade-F { background-color: red; }
+
+span.badge-risk-grade-A { background-color: limegreen; }
+span.badge-risk-grade-B { background-color: yellowgreen; }
+span.badge-risk-grade-C { background-color: orange; }
+span.badge-risk-grade-D { background-color: darkorange; }
+span.badge-risk-grade-E { background-color: orangered; }
+span.badge-risk-grade-F { background-color: red; }
+span.badge-risk-grade-- { background-color: lightgray; }
+
+div.tile {
+  border-width: thin;
+  border-style: solid;
+  border-left-width: 1rem;
+  border-radius: 3px;
+  padding-bottom: 15px;
+  text-align: center;
+}
+div.tile div { font-size: large; }
+div.tile-critical { border-color: #cc0500; }
+div.tile-high { border-color: #df3d03; }
+div.tile-medium { border-color: #f9a009; }
+div.tile-low { border-color: #ffcb0d; }
+div.tile-info { border-color: #3498db; }
+
+div.risk-trends {
+  border-top-color: lightgray;
+  border-top-style: solid;
+}
+
+.row {
+    margin-left: -15px;
+    margin-right: 15px;
+}
+
+.badge-secondary {
+  color: #fff;
+  background-color: #95a5a6;
+}
+
+.navbar-default .navbar-brand:hover, .navbar-default .navbar-brand:focus {
+  color: darkorange;
+}
+.navbar-default .navbar-nav>li>a:hover, .navbar-default .navbar-nav>li>a:focus {
+  color: darkorange;
+}
+
+.label-critical { background-color: #cc0500; }
+.label-high { background-color: #df3d03; }
+.label-medium { background-color: #f9a009; }
+.label-low { background-color: #ffcb0d; }
+.label-info { background-color: #3498db; }
+
+.progress-bar-critical { background-color: #cc0500; }
+.progress-bar-high { background-color: #df3d03; }
+.progress-bar-medium { background-color: #f9a009; }
+.progress-bar-low { background-color: #ffcb0d; }
+.progress-bar-info { background-color: #3498db; }
