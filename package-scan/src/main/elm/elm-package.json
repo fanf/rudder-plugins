@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "summary": "Package vulnerability scanner for Rudder",
+    "summary": "Patrowl integration plugin with Rudder",
     "repository": "https://github.com/normation/rudder-plugins.git",
     "license": "GPL v.3",
     "source-directories": [

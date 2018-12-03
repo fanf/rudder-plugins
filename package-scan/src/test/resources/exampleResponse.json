@@ -1,0 +1,200 @@
+{
+  "result": "OK",
+  "data": {
+    "packages": {
+      "poppler 0.26.5-2+deb8u5 all": {
+        "DEBIAN:DLA-1562-2:78837": [
+          {
+            "package": "poppler 0.26.5-2+deb8u5 all",
+            "providedOSName": "debian",
+            "bulletinOSName": "Debian",
+            "providedOSVersion": "8",
+            "bulletinOSVersion": "8",
+            "providedVersion": "0.26.5-2+deb8u5",
+            "bulletinVersion": "0.26.5-2+deb8u6",
+            "providedPackage": "poppler 0.26.5-2+deb8u5 all",
+            "bulletinPackage": "poppler_0.26.5-2+deb8u6_all.deb",
+            "operator": "lt",
+            "bulletinID": "DEBIAN:DLA-1562-2:78837",
+            "cvelist": [
+              "CVE-2018-16646"
+            ],
+            "cvss": {
+              "score": 4.3,
+              "vector": "AV:NETWORK/AC:MEDIUM/Au:NONE/C:NONE/I:NONE/A:PARTIAL/"
+            },
+            "fix": "sudo apt-get --assume-yes install --only-upgrade poppler"
+          }
+        ]
+      },
+      "libarchive13 3.1.2-11+deb8u2 x86_64": {
+        "DEBIAN:DSA-3677-1:667B6": [
+          {
+            "package": "libarchive13 3.1.2-11+deb8u2 x86_64",
+            "providedOSName": "debian",
+            "bulletinOSName": "Debian",
+            "providedOSVersion": "8",
+            "bulletinOSVersion": "8",
+            "providedVersion": "3.1.2-11+deb8u2",
+            "bulletinVersion": "3.1.2-11+deb8u3",
+            "providedPackage": "libarchive13 3.1.2-11+deb8u2 x86_64",
+            "bulletinPackage": "libarchive13_3.1.2-11+deb8u3_all.deb",
+            "operator": "lt",
+            "bulletinID": "DEBIAN:DSA-3677-1:667B6",
+            "cvelist": [
+              "CVE-2016-6250",
+              "CVE-2016-7166",
+              "CVE-2016-5418"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vector": "AV:NETWORK/AC:LOW/Au:NONE/C:PARTIAL/I:PARTIAL/A:PARTIAL/"
+            },
+            "fix": "sudo apt-get --assume-yes install --only-upgrade libarchive13"
+          }
+        ],
+        "DEBIAN:DLA-1600-1:DC924": [
+          {
+            "package": "libarchive13 3.1.2-11+deb8u2 x86_64",
+            "providedOSName": "debian",
+            "bulletinOSName": "Debian",
+            "providedOSVersion": "8",
+            "bulletinOSVersion": "8",
+            "providedVersion": "3.1.2-11+deb8u2",
+            "bulletinVersion": "3.1.2-11+deb8u4",
+            "providedPackage": "libarchive13 3.1.2-11+deb8u2 x86_64",
+            "bulletinPackage": "libarchive13_3.1.2-11+deb8u4_all.deb",
+            "operator": "lt",
+            "bulletinID": "DEBIAN:DLA-1600-1:DC924",
+            "cvelist": [
+              "CVE-2016-8687",
+              "CVE-2016-10349",
+              "CVE-2016-10209",
+              "CVE-2017-14502",
+              "CVE-2017-14166",
+              "CVE-2017-5601",
+              "CVE-2017-14503",
+              "CVE-2016-8689",
+              "CVE-2015-8915",
+              "CVE-2016-8688",
+              "CVE-2017-14501",
+              "CVE-2016-10350"
+            ],
+            "cvss": {
+              "score": 5,
+              "vector": "AV:NETWORK/AC:LOW/Au:NONE/C:NONE/I:NONE/A:PARTIAL/"
+            },
+            "fix": "sudo apt-get --assume-yes install --only-upgrade libarchive13"
+          }
+        ]
+      }
+    },
+    "vulnerabilities": [
+      "DEBIAN:DSA-3677-1:667B6",
+      "DEBIAN:DLA-1562-2:78837",
+      "DEBIAN:DLA-1600-1:DC924"
+    ],
+    "reasons": [
+      {
+        "package": "poppler 0.26.5-2+deb8u5 all",
+        "providedOSName": "debian",
+        "bulletinOSName": "Debian",
+        "providedOSVersion": "8",
+        "bulletinOSVersion": "8",
+        "providedVersion": "0.26.5-2+deb8u5",
+        "bulletinVersion": "0.26.5-2+deb8u6",
+        "providedPackage": "poppler 0.26.5-2+deb8u5 all",
+        "bulletinPackage": "poppler_0.26.5-2+deb8u6_all.deb",
+        "operator": "lt",
+        "bulletinID": "DEBIAN:DLA-1562-2:78837",
+        "cvelist": [
+          "CVE-2018-16646"
+        ],
+        "cvss": {
+          "score": 4.3,
+          "vector": "AV:NETWORK/AC:MEDIUM/Au:NONE/C:NONE/I:NONE/A:PARTIAL/"
+        },
+        "fix": "sudo apt-get --assume-yes install --only-upgrade poppler"
+      },
+      {
+        "package": "libarchive13 3.1.2-11+deb8u2 x86_64",
+        "providedOSName": "debian",
+        "bulletinOSName": "Debian",
+        "providedOSVersion": "8",
+        "bulletinOSVersion": "8",
+        "providedVersion": "3.1.2-11+deb8u2",
+        "bulletinVersion": "3.1.2-11+deb8u3",
+        "providedPackage": "libarchive13 3.1.2-11+deb8u2 x86_64",
+        "bulletinPackage": "libarchive13_3.1.2-11+deb8u3_all.deb",
+        "operator": "lt",
+        "bulletinID": "DEBIAN:DSA-3677-1:667B6",
+        "cvelist": [
+          "CVE-2016-6250",
+          "CVE-2016-7166",
+          "CVE-2016-5418"
+        ],
+        "cvss": {
+          "score": 7.5,
+          "vector": "AV:NETWORK/AC:LOW/Au:NONE/C:PARTIAL/I:PARTIAL/A:PARTIAL/"
+        },
+        "fix": "sudo apt-get --assume-yes install --only-upgrade libarchive13"
+      },
+      {
+        "package": "libarchive13 3.1.2-11+deb8u2 x86_64",
+        "providedOSName": "debian",
+        "bulletinOSName": "Debian",
+        "providedOSVersion": "8",
+        "bulletinOSVersion": "8",
+        "providedVersion": "3.1.2-11+deb8u2",
+        "bulletinVersion": "3.1.2-11+deb8u4",
+        "providedPackage": "libarchive13 3.1.2-11+deb8u2 x86_64",
+        "bulletinPackage": "libarchive13_3.1.2-11+deb8u4_all.deb",
+        "operator": "lt",
+        "bulletinID": "DEBIAN:DLA-1600-1:DC924",
+        "cvelist": [
+          "CVE-2016-8687",
+          "CVE-2016-10349",
+          "CVE-2016-10209",
+          "CVE-2017-14502",
+          "CVE-2017-14166",
+          "CVE-2017-5601",
+          "CVE-2017-14503",
+          "CVE-2016-8689",
+          "CVE-2015-8915",
+          "CVE-2016-8688",
+          "CVE-2017-14501",
+          "CVE-2016-10350"
+        ],
+        "cvss": {
+          "score": 5,
+          "vector": "AV:NETWORK/AC:LOW/Au:NONE/C:NONE/I:NONE/A:PARTIAL/"
+        },
+        "fix": "sudo apt-get --assume-yes install --only-upgrade libarchive13"
+      }
+    ],
+    "cvss": {
+      "score": 7.5,
+      "vector": "AV:NETWORK/AC:LOW/Au:NONE/C:PARTIAL/I:PARTIAL/A:PARTIAL/"
+    },
+    "cvelist": [
+      "CVE-2016-6250",
+      "CVE-2016-7166",
+      "CVE-2016-8687",
+      "CVE-2016-5418",
+      "CVE-2016-10349",
+      "CVE-2016-10209",
+      "CVE-2017-14502",
+      "CVE-2017-14166",
+      "CVE-2017-5601",
+      "CVE-2017-14503",
+      "CVE-2018-16646",
+      "CVE-2016-8689",
+      "CVE-2015-8915",
+      "CVE-2016-8688",
+      "CVE-2017-14501",
+      "CVE-2016-10350"
+    ],
+    "cumulativeFix": "sudo apt-get --assume-yes install --only-upgrade poppler libarchive13",
+    "id": "ISKDCVIMM2YBUF6CSMPGMI7CVT88P9LUCCV1ALN52CKTB8EBGJDV1TG88U77RJD3R5N05TAU4DATQB8I1YLX9UXEMPD6ZENDKYHH5YDQA0ZZMABYR6A754FCXONTN62M"
+  }
+}
