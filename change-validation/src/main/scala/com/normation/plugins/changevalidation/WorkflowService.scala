@@ -54,6 +54,8 @@ import com.normation.rudder.services.workflows.WorkflowService
 import com.normation.rudder.services.workflows.WorkflowUpdate
 import com.normation.utils.StringUuidGenerator
 import net.liftweb.common._
+import com.normation.box._
+
 
 
 /**
@@ -123,6 +125,7 @@ class TwoValidationStepsWorkflowServiceImpl(
   , changeRequestEventLogService  : ChangeRequestEventLogService
   , val roChangeRequestRepository : RoChangeRequestRepository
   , woChangeRequestRepository     : WoChangeRequestRepository
+  , notificationService           : NotificationService
   , workflowEnable                : () => Box[Boolean]
   , selfValidation                : () => Box[Boolean]
   , selfDeployment                : () => Box[Boolean]
@@ -306,6 +309,7 @@ class TwoValidationStepsWorkflowServiceImpl(
       saved  <- commit.save(cr, actor, reason)
       repoOk <- woChangeRequestRepository.updateChangeRequest(saved, actor, reason)
       state  <- changeStep(from,Deployed,changeRequestId,actor,reason)
+//      _ <- notificationService.sendNotification("test", from, roWorkflowRepo).toBox
     } yield {
       state
     }
