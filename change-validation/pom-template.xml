@@ -140,11 +140,6 @@
         <groupId>com.normation.plugins</groupId>
         <artifactId>plugins-common-private</artifactId>
       </dependency>
-<!--      <dependency>-->
-<!--        <groupId>com.sun.mail</groupId>-->
-<!--        <artifactId>javax.mail</artifactId>-->
-<!--        <version>1.6.2</version>-->
-<!--      </dependency>-->
     </dependencies>
     <repositories>
     <repository>

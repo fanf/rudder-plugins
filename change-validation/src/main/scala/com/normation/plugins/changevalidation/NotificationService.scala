@@ -31,7 +31,6 @@ import zio.syntax._
 
 import scala.jdk.CollectionConverters._
 
-
 case class Email(value: String)
 
 case class Username(value: String)
@@ -71,8 +70,8 @@ class NotificationService(
     } yield ()
   }
 
-  private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf): IOResult[Unit] = {
 
+  private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf): IOResult[Unit] = {
     val prop = new Properties()
     prop.put("mail.smtp.host", conf.smtpHostServer)
     prop.put("mail.smtp.port", conf.port)
@@ -214,3 +213,4 @@ class NotificationService(
     }
   }
 }
+
