@@ -192,7 +192,6 @@ object ChangeValidationConf extends RudderPluginModule {
 
   lazy val notificationService = new NotificationService(
     RudderConfig.changeRequestEventLogService
-    , RudderConfig.RUDDER_EMAIL_CONF
   )
   // by build convention, we have only one of that on the classpath
   lazy val pluginStatusService =  new CheckRudderPluginEnableImpl(RudderConfig.nodeInfoService)

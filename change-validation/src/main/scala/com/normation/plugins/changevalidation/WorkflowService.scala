@@ -274,6 +274,14 @@ class TwoValidationStepsWorkflowServiceImpl(
       state <- woWorkflowRepo.updateState(changeRequestId,from.id, to.id)
       workflowStep = WorkflowStepChange(changeRequestId,from.id,to.id)
       log   <- workflowLogger.saveEventLog(workflowStep,actor,reason)
+      optcr  <- roChangeRequestRepository.get(changeRequestId)
+      cr     <- Box(optcr) ?~! s"Change request with ID '${changeRequestId.value}' was not found in database"
+      _ <- (from,to) match {
+        case (Validation, Deployment) =>
+          notificationService.sendNotification(Deployment, cr).toBox
+        case _ =>
+          Failure("cannot send email for deployment")
+      }
     } yield {
       workflowComet ! WorkflowUpdate
       state
@@ -295,6 +303,7 @@ class TwoValidationStepsWorkflowServiceImpl(
     for {
       saved    <- saveAndLogChangeRequest(AddChangeRequestDiff(changeRequest), actor, reason)
       workflow <- woWorkflowRepo.createWorkflow(saved.id, Validation.id)
+      _ <- notificationService.sendNotification(Validation, saved).toBox
     } yield {
       workflowComet ! WorkflowUpdate
       saved.id
@@ -309,7 +318,6 @@ class TwoValidationStepsWorkflowServiceImpl(
       saved  <- commit.save(cr, actor, reason)
       repoOk <- woChangeRequestRepository.updateChangeRequest(saved, actor, reason)
       state  <- changeStep(from,Deployed,changeRequestId,actor,reason)
-//      _ <- notificationService.sendNotification("test", from, roWorkflowRepo).toBox
     } yield {
       state
     }
