@@ -31,6 +31,7 @@ import zio.syntax._
 
 import scala.jdk.CollectionConverters._
 
+
 case class Email(value: String)
 
 case class Username(value: String)
@@ -62,6 +63,7 @@ class NotificationService(
 
   def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
     for {
+
       serverConfig <- getSMTPConf(configMailPath)
       emailConf    <- getStepMailConf(step, configMailPath)
       params       <- extractChangeRequestInfo(cr)
