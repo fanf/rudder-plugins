@@ -151,15 +151,15 @@ class TwoValidationStepsWorkflowServiceImpl(
     }
 
     for {
-    saved  <- save ?~! s"could not save change request ${changeRequest.info.name}"
-    modId  =  ModificationId(uuidGen.newUuid)
-    workflowEnable <- workflowEnable()
-    logged <- if(workflowEnable) {
-                changeRequestEventLogService.saveChangeRequestLog(modId, actor, saved, reason) ?~!
-                  s"could not save event log for change request ${saved.changeRequest.id} creation"
-              } else {
-                Full("OK, no workflow")
-              }
+      saved  <- save ?~! s"could not save change request ${changeRequest.info.name}"
+      modId  =  ModificationId(uuidGen.newUuid)
+      workflowEnable <- workflowEnable()
+      logged <- if(workflowEnable) {
+        changeRequestEventLogService.saveChangeRequestLog(modId, actor, saved, reason) ?~!
+          s"could not save event log for change request ${saved.changeRequest.id} creation"
+      } else {
+        Full("OK, no workflow")
+      }
     } yield { saved.changeRequest }
   }
 
@@ -187,10 +187,10 @@ class TwoValidationStepsWorkflowServiceImpl(
         val validatorActions =
           if (authorizedRoles.contains("validator") && canValid)
             Seq((Deployment.id,stepValidationToDeployment _)) ++ {
-            if(authorizedRoles.contains("deployer") && canDeploy)
-              Seq((Deployed.id,stepValidationToDeployed _))
+              if(authorizedRoles.contains("deployer") && canDeploy)
+                Seq((Deployed.id,stepValidationToDeployed _))
               else Seq()
-             }
+            }
           else Seq()
         WorkflowAction("Validate",validatorActions )
 
@@ -274,15 +274,43 @@ class TwoValidationStepsWorkflowServiceImpl(
       state <- woWorkflowRepo.updateState(changeRequestId,from.id, to.id)
       workflowStep = WorkflowStepChange(changeRequestId,from.id,to.id)
       log   <- workflowLogger.saveEventLog(workflowStep,actor,reason)
+      _     =  catchEmailError(sendEmail(from, to, changeRequestId), from.id.value, to.id.value)
     } yield {
       workflowComet ! WorkflowUpdate
       state
     }) match {
       case Full(state) => Full(state)
       case e:Failure => ChangeValidationLogger.error(s"Error when changing step in workflow for Change Request ${changeRequestId.value} : ${e.msg}")
-                        e
+        e
       case Empty => ChangeValidationLogger.error(s"Error when changing step in workflow for Change Request ${changeRequestId.value} : no reason given")
-                    Empty
+        Empty
+    }
+  }
+
+
+  /**
+   *  Send an email notification. Failing to send email does not fail the method (ie: change validation is ok, no
+   *  error displayed to user) BUT of course we log.
+   */
+  private[this] def sendEmail(from: WorkflowNode, to: WorkflowNode, changeRequestId: ChangeRequestId): Box[Unit] = {
+    for {
+      optcr <- roChangeRequestRepository.get(changeRequestId)
+      cr    <- Box(optcr) ?~! s"Change request with ID '${changeRequestId.value}' was not found in database"
+      _     <- (from,to) match {
+        case (Validation, Deployment) =>
+          notificationService.sendNotification(Deployment, cr).toBox
+        case _ =>
+          ChangeValidationLogger.debug(s"Not sending email for update from '${from.id.value}' to '${to.id.value}''")
+          Full( () )
+      }
+    } yield ()
+  }
+
+  def catchEmailError(sendEmail: Box[Unit], from: String, to: String): Unit = {
+    sendEmail match {
+      case eb: EmptyBox =>
+        val msg = (eb ?~! s"Error when trying to send email for change request status update from '${from}' to '${to}'").messageChain
+        ChangeValidationLogger.error(msg)
     }
   }
 
@@ -295,6 +323,7 @@ class TwoValidationStepsWorkflowServiceImpl(
     for {
       saved    <- saveAndLogChangeRequest(AddChangeRequestDiff(changeRequest), actor, reason)
       workflow <- woWorkflowRepo.createWorkflow(saved.id, Validation.id)
+      _        =  catchEmailError(notificationService.sendNotification(Validation, saved).toBox, "changeRequestCreated", Validation.id.value)
     } yield {
       workflowComet ! WorkflowUpdate
       saved.id
@@ -309,7 +338,6 @@ class TwoValidationStepsWorkflowServiceImpl(
       saved  <- commit.save(cr, actor, reason)
       repoOk <- woChangeRequestRepository.updateChangeRequest(saved, actor, reason)
       state  <- changeStep(from,Deployed,changeRequestId,actor,reason)
-//      _ <- notificationService.sendNotification("test", from, roWorkflowRepo).toBox
     } yield {
       state
     }
@@ -343,5 +371,3 @@ class TwoValidationStepsWorkflowServiceImpl(
   // this THE workflow that needs external validation.
   override def needExternalValidation(): Boolean = true
 }
-
-
