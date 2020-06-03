@@ -338,7 +338,6 @@ class TwoValidationStepsWorkflowServiceImpl(
       saved  <- commit.save(cr, actor, reason)
       repoOk <- woChangeRequestRepository.updateChangeRequest(saved, actor, reason)
       state  <- changeStep(from,Deployed,changeRequestId,actor,reason)
-//      _ <- notificationService.sendNotification("test", from, roWorkflowRepo).toBox
     } yield {
       state
     }

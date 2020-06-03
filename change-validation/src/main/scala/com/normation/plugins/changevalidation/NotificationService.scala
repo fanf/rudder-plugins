@@ -70,7 +70,6 @@ class NotificationService(
     } yield ()
   }
 
-
   private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf): IOResult[Unit] = {
     val prop = new Properties()
     prop.put("mail.smtp.host", conf.smtpHostServer)
@@ -213,4 +212,3 @@ class NotificationService(
     }
   }
 }
-
