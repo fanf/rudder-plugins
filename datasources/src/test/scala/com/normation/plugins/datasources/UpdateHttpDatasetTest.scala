@@ -93,6 +93,7 @@ import com.typesafe.config.ConfigValue
 import org.specs2.matcher.EqualityMatcher
 import zio.test.environment._
 import zio.duration._
+import com.softwaremill.quicklens._
 
 object TheSpaced {
 
@@ -144,6 +145,12 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
 
   implicit val blockingExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
   implicit val cs: ContextShift[IO] = IO.contextShift(blockingExecutionContext)
+  implicit class ForceGet(json: String) {
+    def forceParse = GenericProperty.parseValue(json) match {
+      case Right(value) => value
+      case Left(err)    => throw new IllegalArgumentException(s"Error in parsing value: ${err.fullMsg}")
+    }
+  }
 
   implicit class DurationToScala(d: Duration) {
     def toScala = scala.concurrent.duration.FiniteDuration(d.toMillis, "millis")
@@ -200,6 +207,12 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
         Ok{
           counterSuccess.update(_+1).runNow
           """{"foo":"bar"}"""
+        }
+
+      case GET -> Root / "server" =>
+        Ok{
+          counterSuccess.update(_+1).runNow
+          """{"hostname":"server.rudder.local"}"""
         }
 
       case GET -> Root / "404" =>
@@ -789,6 +802,64 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
         )
       )
     }
+
+    "understand ${node.properties[datasources-injected][short-hostname]}" in {
+      //all node updated one time
+      val d2 = NewDataSource(
+          "test-http-service"
+        , url  = s"""${REST_SERVER_URL}/$${node.properties[datasources-injected][short-hostname]}"""
+        , path = "$.hostname"
+      )
+      infos.updates.clear()
+      // root hostname is server.rudder.local, so short hostname is "server"
+      val res = http.queryOne(d2, root.id, UpdateCause(modId, actor, None))
+
+      res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
+        infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+            NodeProperty("test-http-service", "server.rudder.local".toConfigValue, Some(DataSource.providerName))
+        )
+      )
+    }
+  }
+
+  "We should be able to remove property when json path lead to nothing" >> {
+    val r = root.modify(_.node.properties).using(props => NodeProperty("test-http-service", "something".toConfigValue, None) :: props)
+    val infos = new TestNodeRepoInfo( NodeConfigData.allNodesInfo + (r.id -> r) )
+    val http = new HttpQueryDataSourceService(infos, parameterRepo, infos, interpolation, noPostHook, () => alwaysEnforce.succeed, realClock)
+
+    val d = NewDataSource(
+        "test-http-service"
+      , url  = s"${REST_SERVER_URL}/single_node2"
+      , path = "$.badJsonPath"
+    )
+    infos.updates.clear()
+    val res = http.queryOne(d, root.id, UpdateCause(modId, actor, None))
+
+    res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
+      infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+          NodeProperty("test-http-service", "bar".toConfigValue, Some(DataSource.providerName))
+      )
+    )
+  }
+
+  "We should be able to repalce, not override property" >> {
+    val r = root.modify(_.node.properties).using(props => NodeProperty("test-http-service", """{"existing":"something"}""".forceParse, Some(DataSource.providerName)) :: props)
+    val infos = new TestNodeRepoInfo( NodeConfigData.allNodesInfo + (r.id -> r) )
+    val http = new HttpQueryDataSourceService(infos, parameterRepo, infos, interpolation, noPostHook, () => alwaysEnforce.succeed, realClock)
+
+    val d = NewDataSource(
+        "test-http-service"
+      , url  = s"${REST_SERVER_URL}/single_node2"
+      , path = "$.foo"
+    )
+    infos.updates.clear()
+    val res = http.queryOne(d, root.id, UpdateCause(modId, actor, None))
+
+    res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
+      infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+          NodeProperty("test-http-service", "bar".toConfigValue, Some(DataSource.providerName))
+      )
+    )
   }
 
   "The behavior on 404 " should {
