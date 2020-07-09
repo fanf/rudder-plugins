@@ -30,7 +30,10 @@ import javax.mail.internet.MimeMessage
 import zio.syntax._
 
 import scala.jdk.CollectionConverters._
+import java.io.StringWriter
 
+import com.github.mustachejava.DefaultMustacheFactory
+import com.normation.errors.Inconsistency
 
 case class Email(value: String)
 
@@ -63,7 +66,6 @@ class NotificationService(
 
   def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
     for {
-
       serverConfig <- getSMTPConf(configMailPath)
       emailConf    <- getStepMailConf(step, configMailPath)
       params       <- extractChangeRequestInfo(cr)
@@ -111,15 +113,15 @@ class NotificationService(
   }
 
   private[this] def getConfig(path: String): IOResult[Config] = {
-    val file = new File(path)
+    val file           = new File(path)
 
     IOResult.effectM {
       for {
         configResource <- if (file.exists && file.canRead) {
-          FileSystemResource(file).succeed
-        } else {
-          Inconsistency(s"Configuration file not found: ${file.getPath}").fail
-        }
+                            FileSystemResource(file).succeed
+                          } else {
+                            Inconsistency(s"Configuration file not found: ${file.getPath}").fail
+                          }
       } yield {
         ConfigFactory.load(ConfigFactory.parseFile(configResource.file))
       }
@@ -130,25 +132,25 @@ class NotificationService(
     for {
       config <- getConfig(path)
       smtp   <- IOResult.effect(s"An error occurs while parsing SMTP conf in ${path}") {
-        val hostServer = config.getString("smtp.hostServer")
-        val port       = config.getInt("smtp.port")
-        val email      = config.getString("smtp.email")
-        val login      = {
-          val l = config.getString("smtp.login")
-          if (l.isEmpty) None else Some(Username(l))
-        }
-        val password   = {
-          val p = config.getString("smtp.password")
-          if (p.isEmpty) None else Some(p)
-        }
-        SMTPConf(
-          hostServer
-          , port
-          , Email(email)
-          , login
-          , password
-        )
-      }
+         val hostServer = config.getString("smtp.hostServer")
+                  val port       = config.getInt("smtp.port")
+                  val email      = config.getString("smtp.email")
+                  val login      = {
+                    val l = config.getString("smtp.login")
+                    if (l.isEmpty) None else Some(Username(l))
+                  }
+                  val password   = {
+                    val p = config.getString("smtp.password")
+                    if (p.isEmpty) None else Some(p)
+                  }
+                  SMTPConf(
+                    hostServer
+                    , port
+                    , Email(email)
+                    , login
+                    , password
+                  )
+                }
     } yield smtp
   }
 
