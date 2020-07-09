@@ -27,9 +27,12 @@ import net.liftweb.common.EmptyBox
 import net.liftweb.common.Full
 import zio.ZIO
 import zio.syntax._
+
 import scala.jdk.CollectionConverters._
 import java.io.StringWriter
+
 import com.github.mustachejava.DefaultMustacheFactory
+import com.normation.errors.Inconsistency
 
 
 case class Email(value: String)
@@ -61,47 +64,38 @@ class NotificationService(
   val configMailPath = "/opt/rudder/etc/plugins/change-validation.conf"
   val logger         = NamedZioLogger("plugin.change-validation")
 
-  def sendNotification(step: WorkflowNode, cr: ChangeRequest): ZIO[Any, Nothing, Object] = {
-    val notif = for {
+  def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
+    for {
       serverConfig <- getSMTPConf(configMailPath)
       emailConf    <- getStepMailConf(step, configMailPath)
       params       <- extractChangeRequestInfo(cr)
       emailBody    <- getContentFromTemplate(emailConf, params)
-      sendingMail  <- sendEmail(serverConfig, emailBody, emailConf)
-    } yield (sendingMail)
-
-    notif.catchAll {
-      err =>
-        for {
-          _ <- logger.error(s"Sending `${step.id.value}` notification have failed, cause by : ${err}")
-        } yield {
-          step
-        }
-    }
+      _            <- sendEmail(serverConfig, emailBody, emailConf)
+    } yield ()
   }
 
-  private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf) = {
+  private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf): IOResult[Unit] = {
 
     val prop = new Properties()
     prop.put("mail.smtp.host", conf.smtpHostServer)
     prop.put("mail.smtp.port", conf.port)
     prop.put("mail.smtp.starttls.enable", "true")
 
-    val session = (conf.login, conf.password) match {
-      case (Some(l), Some(p)) =>
-        prop.put("mail.smtp.auth", "true");
-        val auth = new Authenticator() {
-          override protected def getPasswordAuthentication = new PasswordAuthentication(l.value, p)
-        }
-        Session.getInstance(prop, auth)
-      case (_, None)          =>
-        prop.put("mail.smtp.auth", "false");
-        Session.getInstance(prop, null)
-      case (None, _)          =>
-        prop.put("mail.smtp.auth", "false");
-        Session.getInstance(prop, null)
-    }
-    try {
+    IOResult.effect {
+      val session = (conf.login, conf.password) match {
+        case (Some(l), Some(p)) =>
+          prop.put("mail.smtp.auth", "true");
+          val auth = new Authenticator() {
+            override protected def getPasswordAuthentication = new PasswordAuthentication(l.value, p)
+          }
+          Session.getInstance(prop, auth)
+        case (_, None)          =>
+          prop.put("mail.smtp.auth", "false");
+          Session.getInstance(prop, null)
+        case (None, _)          =>
+          prop.put("mail.smtp.auth", "false");
+          Session.getInstance(prop, null)
+      }
       val message = new MimeMessage(session);
       message.setFrom(new InternetAddress(conf.email.value))
       message.setRecipients(
@@ -116,46 +110,49 @@ class NotificationService(
 
       message.setContent(emailBody, "text/html; charset=utf-8");
       Transport.send(message)
-      mailParameter.succeed
-    } catch {
-      case e: MessagingException =>
-        logger.error(s"Sending mail to notification have failed, cause by : ${e.getMessage}").fail
     }
   }
 
-  private[this] def getConfig(path: String): Config = {
+  private[this] def getConfig(path: String): IOResult[Config] = {
     val file           = new File(path)
-    val configResource = if (file.exists && file.canRead) {
-      Some(FileSystemResource(file))
-    } else {
-      logger.error("Can not find configuration file specified by JVM property %s: %s ; abort")
-      throw new Exception("Configuration file not found: %s".format(file.getPath))
+
+    IOResult.effectM {
+      for {
+        configResource <- if (file.exists && file.canRead) {
+                            FileSystemResource(file).succeed
+                          } else {
+                            Inconsistency(s"Configuration file not found: ${file.getPath}").fail
+                          }
+      } yield {
+        ConfigFactory.load(ConfigFactory.parseFile(configResource.file))
+      }
     }
-    ConfigFactory.load(ConfigFactory.parseFile(configResource.value.file))
   }
 
   private[this] def getSMTPConf(path: String): IOResult[SMTPConf] = {
-    IOResult.effect(s"An error occurs while parsing SMTP conf in ${path}") {
-      val config     = getConfig(path)
-      val hostServer = config.getString("smtp.hostServer")
-      val port       = config.getInt("smtp.port")
-      val email      = config.getString("smtp.email")
-      val login      = {
-        val l = config.getString("smtp.login")
-        if (l.isEmpty) None else Some(Username(l))
-      }
-      val password   = {
-        val p = config.getString("smtp.password")
-        if (p.isEmpty) None else Some(p)
-      }
-      SMTPConf(
-        hostServer
-        , port
-        , Email(email)
-        , login
-        , password
-      )
-    }
+    for {
+      config <- getConfig(path)
+      smtp   <- IOResult.effect(s"An error occurs while parsing SMTP conf in ${path}") {
+                  val hostServer = config.getString("smtp.hostServer")
+                  val port       = config.getInt("smtp.port")
+                  val email      = config.getString("smtp.email")
+                  val login      = {
+                    val l = config.getString("smtp.login")
+                    if (l.isEmpty) None else Some(Username(l))
+                  }
+                  val password   = {
+                    val p = config.getString("smtp.password")
+                    if (p.isEmpty) None else Some(p)
+                  }
+                  SMTPConf(
+                    hostServer
+                    , port
+                    , Email(email)
+                    , login
+                    , password
+                  )
+                }
+    } yield smtp
   }
 
   private[this] def getStepMailConf(step: WorkflowNode, path: String): IOResult[EmailConf] = {
@@ -194,7 +191,7 @@ class NotificationService(
     }
   }
 
-  private[this] def extractChangeRequestInfo(cr: ChangeRequest) = {
+  private[this] def extractChangeRequestInfo(cr: ChangeRequest): IOResult[Map[String, String]] = {
     changeRequestEventLogService.getLastLog(cr.id) match {
       case eb:EmptyBox =>
         "Error when retrieving the last action".fail

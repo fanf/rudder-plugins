@@ -274,14 +274,7 @@ class TwoValidationStepsWorkflowServiceImpl(
       state <- woWorkflowRepo.updateState(changeRequestId,from.id, to.id)
       workflowStep = WorkflowStepChange(changeRequestId,from.id,to.id)
       log   <- workflowLogger.saveEventLog(workflowStep,actor,reason)
-      optcr  <- roChangeRequestRepository.get(changeRequestId)
-      cr     <- Box(optcr) ?~! s"Change request with ID '${changeRequestId.value}' was not found in database"
-      _ <- (from,to) match {
-        case (Validation, Deployment) =>
-          notificationService.sendNotification(Deployment, cr).toBox
-        case _ =>
-          Failure("cannot send email for deployment")
-      }
+      _     =  catchEmailError(sendEmail(from, to, changeRequestId), from.id.value, to.id.value)
     } yield {
       workflowComet ! WorkflowUpdate
       state
@@ -294,6 +287,33 @@ class TwoValidationStepsWorkflowServiceImpl(
     }
   }
 
+
+  /**
+   *  Send an email notification. Failing to send email does not fail the method (ie: change validation is ok, no
+   *  error displayed to user) BUT of course we log.
+   */
+  private[this] def sendEmail(from: WorkflowNode, to: WorkflowNode, changeRequestId: ChangeRequestId): Box[Unit] = {
+    for {
+      optcr <- roChangeRequestRepository.get(changeRequestId)
+      cr    <- Box(optcr) ?~! s"Change request with ID '${changeRequestId.value}' was not found in database"
+      _     <- (from,to) match {
+                case (Validation, Deployment) =>
+                  notificationService.sendNotification(Deployment, cr).toBox
+                case _ =>
+                  ChangeValidationLogger.debug(s"Not sending email for update from '${from.id.value}' to '${to.id.value}''")
+                  Full(Unit)
+              }
+    } yield ()
+  }
+
+  def catchEmailError(sendEmail: Box[Unit], from: String, to: String): Unit = {
+    sendEmail() match {
+      case eb: EmptyBox =>
+        val msg = (eb ?~! s"Error when trying to send email for change request status update from '${from}' to '${to}'").messageChain
+        ChangeValidationLogger.error(msg)
+    }
+  }
+
   private[this] def toFailure(from: WorkflowNode, changeRequestId: ChangeRequestId, actor: EventActor, reason: Option[String]) : Box[WorkflowNodeId] = {
     changeStep(from, Cancelled,changeRequestId,actor,reason)
   }
@@ -303,7 +323,7 @@ class TwoValidationStepsWorkflowServiceImpl(
     for {
       saved    <- saveAndLogChangeRequest(AddChangeRequestDiff(changeRequest), actor, reason)
       workflow <- woWorkflowRepo.createWorkflow(saved.id, Validation.id)
-      _ <- notificationService.sendNotification(Validation, saved).toBox
+      _        =  catchEmailError(notificationService.sendNotification(Validation, saved).toBox, "changeRequestCreated", Validation.id.value)
     } yield {
       workflowComet ! WorkflowUpdate
       saved.id
