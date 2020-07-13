@@ -297,12 +297,12 @@ class TwoValidationStepsWorkflowServiceImpl(
       optcr <- roChangeRequestRepository.get(changeRequestId)
       cr    <- Box(optcr) ?~! s"Change request with ID '${changeRequestId.value}' was not found in database"
       _     <- (from,to) match {
-        case (Validation, Deployment) =>
-          notificationService.sendNotification(Deployment, cr).toBox
-        case _ =>
-          ChangeValidationLogger.debug(s"Not sending email for update from '${from.id.value}' to '${to.id.value}''")
-          Full( () )
-      }
+                  case (Validation, Deployment) =>
+                    notificationService.sendNotification(Deployment, cr).toBox
+                  case _ =>
+                    ChangeValidationLogger.debug(s"Not sending email for update from '${from.id.value}' to '${to.id.value}''")
+                    Full( () )
+                }
     } yield ()
   }
 
