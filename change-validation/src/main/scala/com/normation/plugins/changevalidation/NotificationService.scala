@@ -156,7 +156,7 @@ class NotificationService(
     val s = step match {
       case Validation => "validation"
       case Deployment => "deployment"
-      case _ => "unsupported"
+      case _          => "unsupported"
     }
     for {
       config   <- getConfig(path)
@@ -193,8 +193,7 @@ class NotificationService(
     for {
       lastLog  <- changeRequestEventLogService.getLastLog(cr.id).toIO
       eventLog <- lastLog match {
-                    case None           =>
-                      Inconsistency("Error when retrieving the last action").fail
+                    case None              => Inconsistency("Error when retrieving the last action").fail
                     case Some(e: EventLog) => e.succeed
                   }
       actionName = eventLog match {
@@ -202,7 +201,6 @@ class NotificationService(
                      case _: AddChangeRequest    => "Created"
                      case _: DeleteChangeRequest => "Deleted"
                    }
-      date       =  eventLog.creationDate.toDate.toString
     } yield {
       Map(
           "id"          -> cr.id.value.toString
