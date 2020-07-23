@@ -8,19 +8,13 @@ import java.util.Properties
 import bootstrap.liftweb.FileSystemResource
 import bootstrap.liftweb.RudderConfig
 import com.github.mustachejava.DefaultMustacheFactory
+import com.github.mustachejava.MustacheFactory
 import com.normation.NamedZioLogger
-import com.normation.errors.IOResult
-import com.normation.errors.Inconsistency
 import com.normation.errors._
-import com.normation.eventlog.EventLog
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Deployment
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Validation
-import com.normation.rudder.domain.eventlog.AddChangeRequest
-import com.normation.rudder.domain.eventlog.DeleteChangeRequest
-import com.normation.rudder.domain.eventlog.ModifyChangeRequest
 import com.normation.rudder.domain.workflows.ChangeRequest
 import com.normation.rudder.domain.workflows.WorkflowNode
-import com.normation.rudder.services.eventlog.ChangeRequestEventLogService
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import javax.mail.Session
@@ -30,16 +24,12 @@ import javax.mail.internet.MimeMessage
 import zio.syntax._
 
 import scala.jdk.CollectionConverters._
-import java.io.StringWriter
 
-import com.github.mustachejava.DefaultMustacheFactory
-import com.normation.errors.Inconsistency
+final case class Email(value: String)
 
-case class Email(value: String)
+final case class Username(value: String)
 
-case class Username(value: String)
-
-case class SMTPConf(
+final case class SMTPConf(
     smtpHostServer : String
   , port           : Int
   , email          : Email
@@ -47,9 +37,8 @@ case class SMTPConf(
   , password       : Option[String]
 )
 
-case class EmailConf(
-    state   : WorkflowNode
-  , to      : Set[Email]
+final case class EmailConf(
+    to      : Set[Email]
   , replyTo : Set[Email]
   , cc      : Set[Email]
   , bcc     : Set[Email]
@@ -57,24 +46,22 @@ case class EmailConf(
   , template: String
 )
 
+final case class EmailEnvelop(
+    to      : Set[Email]
+  , replyTo : Set[Email]
+  , cc      : Set[Email]
+  , bcc     : Set[Email]
+  , subject : String
+  , body    : String
+)
 
-class NotificationService(
-  changeRequestEventLogService: ChangeRequestEventLogService
-) {
-  val configMailPath = "/opt/rudder/etc/plugins/change-validation.conf"
-  val logger         = NamedZioLogger("plugin.change-validation")
 
-  def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
-    for {
-      serverConfig <- getSMTPConf(configMailPath)
-      emailConf    <- getStepMailConf(step, configMailPath)
-      params       <- extractChangeRequestInfo(cr)
-      emailBody    <- getContentFromTemplate(emailConf, params)
-      _            <- sendEmail(serverConfig, emailBody, emailConf)
-    } yield ()
-  }
+/**
+ * This service responsability is only to send emails using an SMTP config and an email envelop.
+ */
+class EmailNotificationService {
 
-  private[this] def sendEmail(conf: SMTPConf, emailBody: String, mailParameter: EmailConf): IOResult[Unit] = {
+  def sendEmail(conf: SMTPConf, envelop: EmailEnvelop): IOResult[Unit] = {
     val prop = new Properties()
     prop.put("mail.smtp.host", conf.smtpHostServer)
     prop.put("mail.smtp.port", conf.port)
@@ -99,22 +86,55 @@ class NotificationService(
       message.setFrom(new InternetAddress(conf.email.value))
       message.setRecipients(
         Message.RecipientType.TO,
-        mailParameter.to.map(_.value).mkString(",")
+        envelop.to.map(_.value).mkString(",")
       )
-      val reply: Array[Address] = mailParameter.replyTo.map(e => new InternetAddress(e.value)).toArray
-      message.addRecipients(Message.RecipientType.BCC, mailParameter.bcc.map(_.value).mkString(","))
-      message.addRecipients(Message.RecipientType.CC, mailParameter.cc.map(_.value).mkString(","))
+      val reply: Array[Address] = envelop.replyTo.map(e => new InternetAddress(e.value)).toArray
+      message.addRecipients(Message.RecipientType.BCC, envelop.bcc.map(_.value).mkString(","))
+      message.addRecipients(Message.RecipientType.CC, envelop.cc.map(_.value).mkString(","))
       message.setReplyTo(reply)
-      message.setSubject(mailParameter.subject);
+      message.setSubject(envelop.subject);
 
-      message.setContent(emailBody, "text/html; charset=utf-8");
+      message.setContent(envelop.body, "text/html; charset=utf-8");
       Transport.send(message)
     }
+  }
+}
+
+class NotificationService(
+  emailService: EmailNotificationService
+) {
+
+  implicit class ToEnvelop(val param: EmailConf)  {
+    def toEnvelop(body: String) = {
+      EmailEnvelop(
+          param.to
+        , param.replyTo
+        , param.cc
+        , param.bcc
+        , param.subject
+        , body
+      )
+    }
+  }
+
+  val configMailPath = "/opt/rudder/etc/plugins/change-validation.conf"
+  val logger         = NamedZioLogger("plugin.change-validation")
+
+  def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
+    for {
+      serverConfig <- getSMTPConf(configMailPath)
+      emailConf    <- getStepMailConf(step, configMailPath)
+      // todo: get rudder base url from config here
+      params       =  extractChangeRequestInfo("XXXXXX", cr)
+      mf           =  new DefaultMustacheFactory()
+      emailBody    <- getContentFromTemplate(mf, emailConf, params)
+      emailSubject <- getSubjectFromTemplate(mf, emailConf.subject, params)
+      _            <- emailService.sendEmail(serverConfig, emailConf.toEnvelop(emailBody).copy(subject = emailSubject))
+    } yield ()
   }
 
   private[this] def getConfig(path: String): IOResult[Config] = {
     val file           = new File(path)
-
     IOResult.effectM {
       for {
         configResource <- if (file.exists && file.canRead) {
@@ -170,8 +190,7 @@ class NotificationService(
                     val subject  = config.getString(s"${s}.subject")
                     val template = config.getString(s"${s}.template")
                     EmailConf(
-                      Validation
-                      , to
+                        to
                       , replyTo
                       , cc
                       , bcc
@@ -182,37 +201,31 @@ class NotificationService(
     } yield envelope
   }
 
-  private[this] def getContentFromTemplate(emailConf: EmailConf, param: Map[String, String]): IOResult[String] = {
+  private[this] def getContentFromTemplate(mf: MustacheFactory, emailConf: EmailConf, param: Map[String, String]): IOResult[String] = {
     IOResult.effect(s"Error when getting `${emailConf.template}` template configuration"){
-      val writer   = new StringWriter()
-      val mf       = new DefaultMustacheFactory
       val mustache = mf.compile(new FileReader(emailConf.template), emailConf.template)
-      mustache.execute(writer, param.asJava).toString
+      mustache.execute(new StringWriter(), param.asJava).toString
     }
   }
 
-  private[this] def extractChangeRequestInfo(cr: ChangeRequest): IOResult[Map[String, String]] = {
-    for {
-      lastLog  <- changeRequestEventLogService.getLastLog(cr.id).toIO
-      eventLog <- lastLog match {
-                    case None              => Inconsistency("Error when retrieving the last action").fail
-                    case Some(e: EventLog) => e.succeed
-                  }
-      actionName = eventLog match {
-                     case _: ModifyChangeRequest => "Modified"
-                     case _: AddChangeRequest    => "Created"
-                     case _: DeleteChangeRequest => "Deleted"
-                   }
-    } yield {
-      Map(
-          "id"          -> cr.id.value.toString
-        , "info"        -> cr.info.name
-        , "description" -> cr.info.description
-        , "actionName"  -> actionName
-        , "author"      -> cr.owner
-        , "date"        -> eventLog.creationDate.toDate.toString
-        , "link"        -> RudderConfig.linkUtil.changeRequestLink(cr.id)
-      )
+  private[this] def getSubjectFromTemplate(mf: MustacheFactory, subject: String, param: Map[String, String]): IOResult[String] = {
+    IOResult.effect(s"Error when expanding variables in email Subject"){
+      val mustache = mf.compile(subject)
+      mustache.execute(new StringWriter(), param.asJava).toString
     }
+  }
+
+  // todo: be careful, normalize "/" at the end to avoid "//secure..."
+  private[this] def extractChangeRequestInfo(rudderBaseUrl: String, cr: ChangeRequest): Map[String, String] = {
+    // we could get a lot more information and mustache parameters by pattern matching on ChangeRequest and
+    // extracting information for ConfigurationChangeRequest like: object updates (mod/creation/deletion),
+    // change request creation date, long messages, etc
+    Map(
+        "id"          -> cr.id.value.toString
+      , "name"        -> cr.info.name
+      , "description" -> cr.info.description
+      , "author"      -> cr.owner
+      , "link"        -> (rudderBaseUrl + RudderConfig.linkUtil.changeRequestLink(cr.id))
+    )
   }
 }

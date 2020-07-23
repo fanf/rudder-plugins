@@ -91,6 +91,7 @@ import com.normation.rudder.services.workflows.WorkflowService
 import net.liftweb.common.Box
 import net.liftweb.common.Full
 import com.normation.box._
+import com.normation.plugins.changevalidation.EmailNotificationService
 import com.normation.plugins.changevalidation.NotificationService
 
 /*
@@ -186,9 +187,7 @@ class ChangeValidationWorkflowLevelService(
  */
 object ChangeValidationConf extends RudderPluginModule {
 
-  lazy val notificationService = new NotificationService(
-    RudderConfig.changeRequestEventLogService
-  )
+  lazy val notificationService = new NotificationService(new EmailNotificationService())
   // by build convention, we have only one of that on the classpath
   lazy val pluginStatusService =  new CheckRudderPluginEnableImpl(RudderConfig.nodeInfoService)
 
