@@ -126,7 +126,9 @@ class NotificationService(
     for {
       serverConfig <- getSMTPConf(configMailPath)
       emailConf    <- getStepMailConf(step, configMailPath)
-      // todo: get rudder base url from config here
+      // todo: get rudder base url from config here -> should I add `domain.name` in RudderConfig ?
+      //                                            -> get it from an existing param : Where ?
+      //                                            -> Mandatory or not ? In my opinion no
       params       =  extractChangeRequestInfo("XXXXXX", cr)
       mf           =  new DefaultMustacheFactory()
       emailBody    <- getContentFromTemplate(mf, emailConf, params)
@@ -154,7 +156,7 @@ class NotificationService(
     for {
       config <- getConfig(path)
       smtp   <- IOResult.effect(s"An error occurs while parsing SMTP conf in ${path}") {
-         val hostServer = config.getString("smtp.hostServer")
+                  val hostServer = config.getString("smtp.hostServer")
                   val port       = config.getInt("smtp.port")
                   val email      = config.getString("smtp.email")
                   val login      = {
@@ -219,7 +221,6 @@ class NotificationService(
     }
   }
 
-  // todo: be careful, normalize "/" at the end to avoid "//secure..."
   private[this] def extractChangeRequestInfo(rudderBaseUrl: String, cr: ChangeRequest): Map[String, String] = {
     // we could get a lot more information and mustache parameters by pattern matching on ChangeRequest and
     // extracting information for ConfigurationChangeRequest like: object updates (mod/creation/deletion),
@@ -229,7 +230,8 @@ class NotificationService(
       , "name"        -> cr.info.name
       , "description" -> cr.info.description
       , "author"      -> cr.owner
-      , "link"        -> (rudderBaseUrl + RudderConfig.linkUtil.changeRequestLink(cr.id))
+      // normalize "/" at the end to avoid "//secure..."
+      , "link"        -> (rudderBaseUrl.dropRight(1) + RudderConfig.linkUtil.changeRequestLink(cr.id))
     )
   }
 }
