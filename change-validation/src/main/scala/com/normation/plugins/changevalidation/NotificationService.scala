@@ -11,6 +11,8 @@ import com.github.mustachejava.DefaultMustacheFactory
 import com.github.mustachejava.MustacheFactory
 import com.normation.NamedZioLogger
 import com.normation.errors._
+import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Cancelled
+import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Deployed
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Deployment
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Validation
 import com.normation.rudder.domain.workflows.ChangeRequest
@@ -178,6 +180,8 @@ class NotificationService(
     val s = step match {
       case Validation => "validation"
       case Deployment => "deployment"
+      case Cancelled  => "cancelled"
+      case Deployed   => "deployed"
       case _          => "unsupported"
     }
     for {

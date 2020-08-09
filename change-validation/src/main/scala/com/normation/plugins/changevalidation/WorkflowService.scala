@@ -316,6 +316,10 @@ class TwoValidationStepsWorkflowServiceImpl(
       _  <- (from,to) match {
                   case (Validation, Deployment) =>
                     notificationService.sendNotification(Deployment, cr)
+                  case (_, Cancelled) =>
+                    notificationService.sendNotification(Cancelled, cr)
+                  case (_, Deployed) =>
+                    notificationService.sendNotification(Deployed, cr)
                   case _ =>
                     ChangeValidationLoggerPure.debug(s"Not sending email for update from '${from.id.value}' to '${to.id.value}''") *>
                     UIO.unit
