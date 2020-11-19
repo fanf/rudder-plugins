@@ -88,7 +88,6 @@ import zio.{IO => _, _}
 import com.normation.errors._
 import com.normation.rudder.domain.nodes.GenericProperty
 import com.normation.rudder.domain.nodes.GenericProperty._
-import com.normation.zio._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValue
 import org.specs2.matcher.EqualityMatcher
@@ -507,7 +506,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
         res.either.runNow must beRight(nodeUpdatedMatcher(nodeIds)) and (
           infos.updates.toMap must havePairs( nodeIds.map(x => (x, 1) ).toSeq:_* )
         ) and (
-          infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+          infos.getAll().flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
               NodeProperty.apply("test-http-service", testArray(i)._2.forceParse, None, Some(DataSource.providerName))
           )
         )
@@ -532,7 +531,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
         res.either.runNow must beRight(nodeUpdatedMatcher(nodeIds)) and (
           infos.updates.toMap must havePairs( nodeIds.map(x => (x, 1) ).toSeq:_* )
         ) and (
-          infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+          infos.getAll().flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
               NodeProperty.apply("test-http-service", testArray(i)._3.forceParse, None, Some(DataSource.providerName))
           )
         )
@@ -559,7 +558,6 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
     // test clock needs explicit await to works, so we add them with a queue offer/take
     val testAction = (q: Queue[Unit]) => (c: UpdateCause) => action(c) *> q.offer(()).unit
 
-    import com.normation.zio.ZioRuntime._
     "does nothing if scheduler is disabled" in {
       val (total_0, total_1d) : (Int,Int) = makeTestClock.use { testClock =>
         val queue = Queue.unbounded[Unit].runNow
@@ -910,7 +908,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
       val res = http.queryOne(d2, root.id, UpdateCause(modId, actor, None))
 
       res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
-        infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+        infos.getAll().flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
             NodeProperty.apply("test-http-service", "bar".toConfigValue, None, Some(DataSource.providerName))
         )
       )
@@ -928,7 +926,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
       val res = http.queryOne(d2, root.id, UpdateCause(modId, actor, None))
 
       res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
-        infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+        infos.getAll().flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
             NodeProperty.apply("test-http-service", "server.rudder.local".toConfigValue, None, Some(DataSource.providerName))
         )
       )
