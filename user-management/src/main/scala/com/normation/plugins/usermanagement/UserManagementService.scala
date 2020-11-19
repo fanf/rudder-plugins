@@ -141,7 +141,7 @@ object UserManagementService {
         Failure(err.msg)
       case Right(file) =>
         tryo(ConstructingParser.fromFile(file.toJava, preserveWS = true)).flatMap { parsedFile =>
-          val userXML = parsedFile.document.children
+          val userXML = parsedFile.document().children
           (userXML \\ "authentication").head match {
             case e: Elem =>
               val newXml =
@@ -164,7 +164,7 @@ object UserManagementService {
         Failure(err.msg)
       case Right(file) =>
         tryo(ConstructingParser.fromFile(file.toJava, preserveWS = true)).flatMap { parsedFile =>
-          val userXML = parsedFile.document.children
+          val userXML = parsedFile.document().children
           val toUpdate = (userXML \\ "authentication").head
           val newXml = new RuleTransformer(new RewriteRule {
             override def transform(n: Node): NodeSeq = n match {
@@ -183,7 +183,7 @@ object UserManagementService {
         Failure(err.msg)
       case Right(file) =>
         tryo(ConstructingParser.fromFile(file.toJava, preserveWS = true)).flatMap{ parsedFile =>
-          val userXML = parsedFile.document.children
+          val userXML = parsedFile.document().children
           val toUpdate = (userXML \\ "authentication").head
           val newXml = new RuleTransformer(new RewriteRule {
             override def transform(n: Node): NodeSeq = n match {

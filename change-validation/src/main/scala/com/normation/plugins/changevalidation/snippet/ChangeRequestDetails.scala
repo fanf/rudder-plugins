@@ -51,7 +51,6 @@ import com.normation.rudder.domain.workflows._
 import com.normation.rudder.services.workflows.NoWorkflowAction
 import com.normation.rudder.services.workflows.WorkflowAction
 import com.normation.rudder.web.ChooseTemplate
-import com.normation.rudder.web.components._
 import com.normation.rudder.web.model._
 import com.normation.utils.DateFormaterService
 import net.liftweb.common._
