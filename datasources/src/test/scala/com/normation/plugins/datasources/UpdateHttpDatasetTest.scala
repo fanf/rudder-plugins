@@ -96,6 +96,7 @@ import zio.test.environment._
 import zio.duration._
 import org.specs2.specification.core.Fragment
 import com.normation.zio._
+import zio.test.Annotations
 
 object TheSpaced {
 
@@ -165,7 +166,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
     compactRender(parse(json))
   }
 
-  implicit class RunNowTimeout[A](effect: ZIO[Live, RudderError, A]) {
+  implicit class RunNowTimeout[A](effect: ZIO[Live with Annotations, RudderError, A]) {
     def runTimeout(d: Duration) = effect.timeout(d).notOptional(s"The test timed-out after ${d}").provideLayer(testEnvironment).runNow
   }
 
@@ -487,7 +488,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
 
 
   sequential
-/*
+
   "Array validation with [*]" >> {
     Fragment.foreach(0 until testArray.size) { i =>
       s"for case: ${testArray(i)._1} -> ${testArray(i)._2}" >> {
@@ -560,7 +561,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
 
     import com.normation.zio.ZioRuntime._
     "does nothing if scheduler is disabled" in {
-      val (total_0, total_1d) : (Int,Int) = ZioRuntime.runNow( makeTestClock.use { testClock =>
+      val (total_0, total_1d) : (Int,Int) = makeTestClock.use { testClock =>
         val queue = Queue.unbounded[Unit].runNow
 
         val dss = new DataSourceScheduler(
@@ -586,14 +587,14 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
         } yield {
           (total_0, ce_1d + cs_1d)
         }
-      }.timeoutFail(Inconsistency("error"))(1 minute))
+      }.runTimeout(1 minute)
 
       (total_0, total_1d) must beEqualTo(
       (0      , 0       ))
     }
 
     "allows interactive updates with disabled scheduler (but not data source)" in {
-      val (total_0, total_1d, total_postGen) =ZioRuntime.runNow((makeTestClock.use { testClock =>
+      val (total_0, total_1d, total_postGen) = makeTestClock.use { testClock =>
         val queue = Queue.unbounded[Unit].runNow
 
         val dss = new DataSourceScheduler(
@@ -629,7 +630,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
           cs_2    <- NodeDataset.counterSuccess.get
           total_2 =  ce_2 + cs_2
         } yield (total_0, total_1, total_2)
-      }).timeoutFail(Inconsistency("error"))(1 minute))
+      }.runTimeout(1 minute)
 
 
 
@@ -641,7 +642,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
     }
 
     "create a new schedule from data source information" in {
-      val (total_0, total_0s, total_1s, total_4m, total_5m, total_8m) = ZioRuntime.runNow((makeTestClock.use { testClock =>
+      val (total_0, total_0s, total_1s, total_4m, total_5m, total_8m) = makeTestClock.use { testClock =>
         // testClock need to know what fibers are doing something, and it' seems to be done easily with a queue.
         val queue = Queue.unbounded[Unit].runNow
 
@@ -694,7 +695,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
           cs_8m    <- NodeDataset.counterSuccess.get
           total_8m =  ce_8m + cs_8m
         } yield (total_0, total_0s, total_1s, total_4m, total_5m, total_8m)
-      }).timeoutFail(Inconsistency("error"))(1 minute)
+      }.runTimeout(1 minute)
 
       val size = NodeConfigData.allNodesInfo.size
       (total_0, total_0s, total_1s, total_4m, total_5m, total_8m) must beEqualTo(
@@ -702,7 +703,6 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
     }
 
   }
-  */
   "querying a lot of nodes" should {
 
     // test on 100 nodes. With 30s timeout, even on small hardware it will be ok.
