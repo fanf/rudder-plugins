@@ -943,7 +943,7 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
       val res = http.queryOne(d2, root.id, UpdateCause(modId, actor, None))
 
       res.either.runNow must beRight(===(NodeUpdateResult.Updated(root.id):NodeUpdateResult)) and (
-        infos.getAll.flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
+        infos.getAll().flatMap( m => m(root.id).properties.find( _.name == "test-http-service") ) mustFullEq(
             NodeProperty.apply("test-http-service", """{ "environment": "DEV_INFRA", "mergeBucket" : { "test_merge2" : "aPotentialMergeValue1" } }""".forceParse, None, Some(DataSource.providerName))
         )
       )
