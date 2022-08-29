@@ -45,24 +45,32 @@ import com.normation.rudder.domain.nodes.NodeInfo
 import com.normation.rudder.domain.properties.NodeProperty
 import com.normation.rudder.domain.policies.GlobalPolicyMode
 import com.normation.rudder.services.policies.InterpolatedValueCompiler
+
 import net.minidev.json.JSONArray
 import net.minidev.json.JSONAware
 
 import scala.util.control.NonFatal
 import scalaj.http.Http
 import scalaj.http.HttpOptions
-import zio._
-import zio.syntax._
-import com.normation.errors._
+
+import zio.*
+import zio.syntax.*
+import com.normation.errors.*
 import com.normation.rudder.domain.properties.GenericProperty
-import com.normation.rudder.domain.properties.GenericProperty._
+import com.normation.rudder.domain.properties.GenericProperty.*
 import com.normation.rudder.domain.properties.GlobalParameter
 import com.normation.rudder.services.policies.ParamInterpolationContext
+
 import com.typesafe.config.ConfigValue
-import zio.duration._
-import com.softwaremill.quicklens._
+
+import zio.duration.*
+import com.softwaremill.quicklens.*
 import net.minidev.json.JSONStyle
 import net.minidev.json.JSONValue
+
+import zio.cache.Cache
+import zio.cache.Lookup
+import com.normation.zio.ZioRuntime
 
 /*
  * This file contain the logic to update dataset from an
@@ -81,7 +89,7 @@ import net.minidev.json.JSONValue
  * - parse the json result,
  * - return a rudder property with the content.
  */
-class GetDataset(valueCompiler: InterpolatedValueCompiler) {
+class GetDataset(valueCompiler: InterpolatedValueCompiler, queryHttpService: QueryHttpService) {
 
   val compiler = new InterpolateNode(valueCompiler)
 
@@ -124,7 +132,7 @@ class GetDataset(valueCompiler: InterpolatedValueCompiler) {
       headers    <- expandMap(expand, datasource.headers)
       httpParams <- expandMap(expand, datasource.params)
       time_0     <- UIO.effectTotal(System.currentTimeMillis)
-      body       <- QueryHttp.QUERY(datasource.httpMethod, url, headers, httpParams, datasource.sslCheck, connectionTimeout, readTimeOut).chainError(s"Error when fetching data from ${url}")
+      body       <- queryHttpService.QUERY(datasource.httpMethod, url, headers, httpParams, datasource.sslCheck, connectionTimeout, readTimeOut).chainError(s"Error when fetching data from ${url}")
       _          <- DataSourceLoggerPure.Timing.trace(s"[${System.currentTimeMillis - time_0} ms] node '${node.id.value}': GET ${headers.map{case(k,v) => s"$k=$v"}.mkString("[","|","]")} ${url} // ${path}")
       optJson    <- body match {
                       case Some(body) => JsonSelect.fromPath(path, body).map(x => Some(x)).chainError(s"Error when extracting sub-json at path ${path} from ${body}")
@@ -151,8 +159,41 @@ class GetDataset(valueCompiler: InterpolatedValueCompiler) {
 
 }
 
+
+trait QueryHttpService {
+
+  def QUERY(method: HttpMethod, url: String, headers: Map[String, String], params: Map[String, String], checkSsl: Boolean, connectionTimeout: Duration, readTimeOut: Duration): IOResult[Option[String]]
+
+}
+
+final case class CacheParameters(cacheMaxItems: Int, cacheDuration: Duration)
+final case class CacheKey(method: HttpMethod, url: String, headers: Map[String, String], params: Map[String, String], checkSsl: Boolean, connectionTimeout: Duration, readTimeOut: Duration)
+
 /*
- * Timeout are given in Milleseconds
+ * This implementation uses a cache for nodes, so that is several datasources use the same URL for a node,
+ * only one query is done. Cache is limited in size (you should not limit that, else cache will be mostly ineffective,
+ * since a set of nodes will evicted before being used in next datasource (update is done by datasource, not by node)
+ */
+class QueryHttpServiceImpl(useCache: Option[CacheParameters]) extends QueryHttpService {
+
+  val cache = useCache.map { p =>
+
+    val c:Cache[CacheKey, RudderError, Option[String]] = ZioRuntime.unsafeRun(Cache.make(p.cacheMaxItems, p.cacheDuration, Lookup((key: CacheKey) =>
+        QueryHttp.QUERY(key.method, key.url, key.headers, key.params, key.checkSsl, key.connectionTimeout, key.readTimeOut)
+      )))
+    c
+  }
+
+  override def QUERY(method: HttpMethod, url: String, headers: Map[String, String], params: Map[String, String], checkSsl: Boolean, connectionTimeout: Duration, readTimeOut: Duration): IOResult[Option[String]] = {
+    cache match {
+      case None    => QueryHttp.QUERY(method, url, headers, params, checkSsl, connectionTimeout, readTimeOut)
+      case Some(c) => c.get(CacheKey(method, url, headers, params, checkSsl, connectionTimeout, readTimeOut))
+    }
+  }
+}
+
+/*
+ * Timeout are given in Milliseconds
  */
 object QueryHttp {
 

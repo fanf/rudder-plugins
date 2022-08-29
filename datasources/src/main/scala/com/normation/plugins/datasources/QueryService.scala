@@ -100,7 +100,7 @@ class HttpQueryDataSourceService(
   , clock           : Clock
 ) extends QueryDataSourceService {
 
-  val getHttp = new GetDataset(interpolCompiler)
+  val getHttp = new GetDataset(interpolCompiler, new QueryHttpServiceImpl(None))
 
   /*
    * We need a scheduler tailored for I/O, we are mostly doing http requests and
