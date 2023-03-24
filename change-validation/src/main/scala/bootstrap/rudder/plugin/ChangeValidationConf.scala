@@ -67,6 +67,7 @@ import com.normation.plugins.changevalidation.WoValidatedUserJdbcRepository
 import com.normation.plugins.changevalidation.WoValidatedUserRepository
 import com.normation.plugins.changevalidation.WoWorkflowJdbcRepository
 import com.normation.plugins.changevalidation.api.{ChangeRequestApi, ChangeRequestApiImpl, SupervisedTargetsApi, SupervisedTargetsApiImpl, ValidatedUserApiImpl}
+import com.normation.plugins.changevalidation.CheckValidationKind
 import com.normation.rudder.AuthorizationType
 import com.normation.rudder.AuthorizationType.Deployer
 import com.normation.rudder.AuthorizationType.Validator
@@ -86,14 +87,16 @@ import com.normation.rudder.services.workflows.NodeGroupChangeRequest
 import com.normation.rudder.services.workflows.RuleChangeRequest
 import com.normation.rudder.services.workflows.WorkflowLevelService
 import com.normation.rudder.services.workflows.WorkflowService
+
 import net.liftweb.common.Box
 import net.liftweb.common.Full
+
 import com.normation.box._
 import com.normation.plugins.changevalidation.EmailNotificationService
 import com.normation.plugins.changevalidation.NotificationService
 import com.normation.plugins.changevalidation.RoValidatedUserRepository
+
 import net.liftweb.common.EmptyBox
-import net.liftweb.common.Failure
 
 /*
  * The validation workflow level
@@ -207,10 +210,12 @@ class ChangeValidationWorkflowLevelService(
  */
 object ChangeValidationConf extends RudderPluginModule {
 
+  val configFilePath = "/opt/rudder/etc/plugins/change-validation.conf"
+
   lazy val notificationService = new NotificationService(
       new EmailNotificationService()
     , RudderConfig.linkUtil
-    , "/opt/rudder/etc/plugins/change-validation.conf"
+    , configFilePath
   )
   // by build convention, we have only one of that on the classpath
   lazy val pluginStatusService =  new CheckRudderPluginEnableImpl(RudderConfig.nodeInfoService)
@@ -256,19 +261,19 @@ object ChangeValidationConf extends RudderPluginModule {
   }
 
 
-  // other service instanciation / initialization
+  // other service instantiation / initialization
   RudderConfig.workflowLevelService.overrideLevel(
     new ChangeValidationWorkflowLevelService(
         pluginStatusService
       , RudderConfig.workflowLevelService.defaultWorkflowService
       , validationWorkflowService
-      , Seq( new NodeGroupValidationNeeded(
+      , Seq( new CheckValidationKind(configFilePath, new NodeGroupValidationNeeded(
             supervisedTargetRepo.load _
           , roChangeRequestRepository
           , RudderConfig.roRuleRepository
           , RudderConfig.roNodeGroupRepository
           , RudderConfig.nodeInfoService
-        )
+        ))
       )
       , () => RudderConfig.configService.rudder_workflow_enabled().toBox
       , roValidatedUserRepository

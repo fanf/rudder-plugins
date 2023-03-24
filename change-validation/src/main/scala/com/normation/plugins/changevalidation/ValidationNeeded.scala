@@ -13,16 +13,15 @@ import com.normation.rudder.services.workflows.DirectiveChangeRequest
 import com.normation.rudder.services.workflows.GlobalParamChangeRequest
 import com.normation.rudder.services.workflows.NodeGroupChangeRequest
 import com.normation.rudder.services.workflows.RuleChangeRequest
+import com.normation.NamedZioLogger
+
 import net.liftweb.common.Box
 import net.liftweb.common.Full
-import com.normation.box._
 
-object bddMock {
-  val USER_AUTH_NEEDED = Map(
-    "admin" -> false,
-    "Jean" -> true
-  )
-}
+import com.normation.box._
+import com.normation.errors.IOResult
+import com.normation.zio._
+import zio.syntax._
 
 /**
  * Check is an external validation is needed for the change, given some
@@ -36,6 +35,55 @@ trait ValidationNeeded {
   def forDirective  (actor: EventActor, change: DirectiveChangeRequest  ): Box[Boolean]
   def forNodeGroup  (actor: EventActor, change: NodeGroupChangeRequest  ): Box[Boolean]
   def forGlobalParam(actor: EventActor, change: GlobalParamChangeRequest): Box[Boolean]
+}
+
+object CheckValidationKind {
+    val defaultChangeMode = ChangeEnableFor.SupervisedGroups
+}
+class CheckValidationKind(configFile: String, backend: ValidationNeeded) extends ValidationNeeded {
+  val logger = NamedZioLogger("plugin.change-validation")
+
+  val changeEnableFor = {
+    (
+      for {
+        c <- ReadConfigFile.getConfig(configFile)
+        v <- IOResult.effect(ChangeEnableFor.parse(c.getString("change.enable")).getOrElse(CheckValidationKind.defaultChangeMode)).
+          chainError(s"Error when reading configuration parameter 'change.enable' in '${configFile}', using " +
+            s"default value '${CheckValidationKind.defaultChangeMode.name}'"
+          )
+        _ <- logger.info(s"Change validation mode for supervised groups: '${v.name}' ")
+      } yield {
+        v
+      }
+    ).catchAll(err => logger.info(err.fullMsg) *> CheckValidationKind.defaultChangeMode.succeed).runNow
+  }
+
+
+  def checkValidationMode(f: () => Box[Boolean]) = {
+    if (changeEnableFor == ChangeEnableFor.SupervisedGroups) {
+      logger.logEffect.debug(s"Change request follows supervised group logic")
+      f()
+    } else {
+      logger.logEffect.debug(s"Change request must be validation by configuration")
+      Full(true)
+    }
+  }
+
+  override def forRule(actor: EventActor, change: RuleChangeRequest): Box[Boolean] = {
+    checkValidationMode(() => backend.forRule(actor, change))
+  }
+
+  override def forDirective(actor: EventActor, change: DirectiveChangeRequest): Box[Boolean] = {
+    checkValidationMode(() => backend.forDirective(actor, change))
+  }
+
+  override def forNodeGroup(actor: EventActor, change: NodeGroupChangeRequest): Box[Boolean] = {
+    checkValidationMode(() => backend.forNodeGroup(actor, change))
+  }
+
+  override def forGlobalParam(actor: EventActor, change: GlobalParamChangeRequest): Box[Boolean] = {
+    checkValidationMode(() => backend.forGlobalParam(actor, change))
+  }
 }
 
 /*
@@ -54,11 +102,11 @@ trait ValidationNeeded {
  * Note that a validated user will always bypass this validation (see https://issues.rudder.io/issues/22188#note-5)
  */
 class NodeGroupValidationNeeded(
-    monitoredTargets: () => Box[Set[SimpleTarget]]
-  , repos           : RoChangeRequestRepository
-  , ruleLib         : RoRuleRepository
-  , groupLib        : RoNodeGroupRepository
-  , nodeInfoService : NodeInfoService
+    monitoredTargets  : () => Box[Set[SimpleTarget]]
+  , repos             : RoChangeRequestRepository
+  , ruleLib           : RoRuleRepository
+  , groupLib          : RoNodeGroupRepository
+  , nodeInfoService   : NodeInfoService
 ) extends ValidationNeeded {
 
   /*

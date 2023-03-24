@@ -9,6 +9,7 @@ import bootstrap.liftweb.FileSystemResource
 import com.github.mustachejava.DefaultMustacheFactory
 import com.github.mustachejava.MustacheFactory
 import com.normation.NamedZioLogger
+
 import com.normation.errors._
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Cancelled
 import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceImpl.Deployed
@@ -17,17 +18,51 @@ import com.normation.plugins.changevalidation.TwoValidationStepsWorkflowServiceI
 import com.normation.rudder.domain.workflows.ChangeRequest
 import com.normation.rudder.domain.workflows.WorkflowNode
 import com.normation.rudder.web.model.LinkUtil
+
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
-import zio.ZIO
 
+import zio.ZIO
 import jakarta.mail.Session
 import jakarta.mail._
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
-import zio.syntax._
 
+import zio.syntax._
 import scala.jdk.CollectionConverters._
+
+sealed trait ChangeEnableFor {
+  def name: String
+}
+
+object ReadConfigFile {
+  protected[changevalidation] def getConfig(path: String): IOResult[Config] = {
+    val file = new File(path)
+    IOResult.effectM {
+      for {
+        configResource <- if (file.exists && file.canRead) {
+          FileSystemResource(file).succeed
+        } else {
+          Inconsistency(s"Configuration file not found: ${file.getPath}").fail
+        }
+      } yield {
+        ConfigFactory.load(ConfigFactory.parseFile(configResource.file))
+      }
+    }
+  }
+}
+
+object ChangeEnableFor {
+
+  object SupervisedGroups extends ChangeEnableFor { val name = "supervisedGroups" }
+  object AnyChanges extends ChangeEnableFor { val name = "anyChanges" }
+
+  def all = ca.mrvisser.sealerate.values[ChangeEnableFor]
+
+  def parse(s: String): Option[ChangeEnableFor] = {
+    all.collectFirst { case x if(x.name == s) => x}
+  }
+}
 
 final case class Email(value: String)
 
@@ -109,11 +144,15 @@ class EmailNotificationService {
   }
 }
 
+
+
 class NotificationService(
-    emailService  : EmailNotificationService
-  , linkUtil      : LinkUtil
-  , configMailPath: String
+    emailService: EmailNotificationService
+  , linkUtil    : LinkUtil
+  , configFile  : String
 ) {
+
+  val logger = NamedZioLogger("plugin.change-validation")
 
   // we want all our string to be trimmed
   implicit class ConfigExtension(config: Config) {
@@ -142,15 +181,14 @@ class NotificationService(
     }
   }
 
-  val logger = NamedZioLogger("plugin.change-validation")
 
   def sendNotification(step: WorkflowNode, cr: ChangeRequest): IOResult[Unit] = {
     for {
-      serverConfig  <- getSMTPConf(configMailPath)
+      serverConfig  <- getSMTPConf(configFile)
       _             <- ZIO.when(serverConfig.smtpHostServer.nonEmpty) {
         for {
-          emailConf     <- getStepMailConf(step, configMailPath)
-          rudderBaseUrl <- getRudderBaseUrl(configMailPath)
+          emailConf     <- getStepMailConf(step, configFile)
+          rudderBaseUrl <- getRudderBaseUrl(configFile)
           params        =  extractChangeRequestInfo(rudderBaseUrl, cr)
           mf            =  new DefaultMustacheFactory()
           emailBody     <- getContentFromTemplate(mf, emailConf, params)
@@ -161,24 +199,9 @@ class NotificationService(
     } yield ()
   }
 
-  protected[changevalidation] def getConfig(path: String): IOResult[Config] = {
-    val file           = new File(path)
-    IOResult.effectM {
-      for {
-        configResource <- if (file.exists && file.canRead) {
-                            FileSystemResource(file).succeed
-                          } else {
-                            Inconsistency(s"Configuration file not found: ${file.getPath}").fail
-                          }
-      } yield {
-        ConfigFactory.load(ConfigFactory.parseFile(configResource.file))
-      }
-    }
-  }
-
   protected[changevalidation] def getRudderBaseUrl(path: String): IOResult[String] = {
     for {
-      config        <- getConfig(path)
+      config        <- ReadConfigFile.getConfig(path)
       rudderBaseUrl <- IOResult.effect(s"An error occurs while parsing RUDDER base url in ${path}"){
                          config.getTrimmedString("rudder.base.url")
                        }
@@ -187,7 +210,7 @@ class NotificationService(
 
   protected[changevalidation] def getSMTPConf(path: String): IOResult[SMTPConf] = {
     for {
-      config <- getConfig(path)
+      config <- ReadConfigFile.getConfig(path)
       smtp   <- IOResult.effect(s"An error occurs while parsing SMTP conf in ${path}") {
                   val hostServer = config.getTrimmedString("smtp.hostServer")
                   val port       = config.getInt("smtp.port")
@@ -213,7 +236,7 @@ class NotificationService(
 
   protected[changevalidation] def getStepMailConf(step: WorkflowNode, path: String): IOResult[EmailConf] = {
     for {
-      config   <- getConfig(path)
+      config   <- ReadConfigFile.getConfig(path)
       s        <- step match {
                     case Validation => "validation".succeed
                     case Deployment => "deployment".succeed
