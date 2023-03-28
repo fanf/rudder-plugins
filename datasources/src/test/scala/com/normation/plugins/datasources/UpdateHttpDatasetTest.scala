@@ -37,11 +37,12 @@
 
 package com.normation.plugins.datasources
 
-import cats.effect._
+import cats.effect.{Fiber => _, _}
 import cats.effect.concurrent.Ref
 import ch.qos.logback.classic.Level
 import com.github.ghik.silencer.silent
 import com.normation.BoxSpecMatcher
+
 import com.normation.box._
 import com.normation.errors._
 import com.normation.eventlog.EventActor
@@ -51,6 +52,7 @@ import com.normation.inventory.domain.NodeId
 import com.normation.inventory.domain.SecurityToken
 import com.normation.plugins.PluginEnableImpl
 import com.normation.plugins.datasources.DataSourceSchedule._
+import com.normation.plugins.AlwaysEnabledPluginStatus
 import com.normation.rudder.domain.eventlog._
 import com.normation.rudder.domain.nodes.Node
 import com.normation.rudder.domain.nodes.NodeInfo
@@ -70,10 +72,12 @@ import com.normation.rudder.services.nodes.PropertyEngineServiceImpl
 import com.normation.rudder.services.policies.InterpolatedValueCompilerImpl
 import com.normation.rudder.services.policies.NodeConfigData
 import com.normation.utils.StringUuidGeneratorImpl
+
 import com.normation.zio._
 import com.normation.zio.ZioRuntime
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValue
+
 import java.util.concurrent.Executors
 import net.liftweb.common._
 import org.http4s._
@@ -90,8 +94,10 @@ import org.specs2.runner.JUnitRunner
 import org.specs2.specification.AfterAll
 import org.specs2.specification.core.Fragment
 import org.typelevel.ci.CIString
+
 import scala.concurrent.ExecutionContext
 import scala.util.Random
+
 import zio.{IO => _, _}
 import zio.duration._
 import zio.syntax._
@@ -740,6 +746,56 @@ class UpdateHttpDatasetTest extends Specification with BoxSpecMatcher with Logga
       }
 
     }
+
+    "operation from repository" should {
+
+      "saving rom repos should kill the old fiber" in {
+        val id = DataSourceId("test-repos-save")
+
+        val datasource = NewDataSource(
+          name = id.value,
+          url = s"${REST_SERVER_URL}/$${rudder.node.id}",
+          path = "$.hostname",
+          schedule = Scheduled(5.minute)
+        )
+
+        val infos = new TestNodeRepoInfo(NodeConfigData.allNodesInfo)
+        val repos = new DataSourceRepoImpl(
+          new MemoryDataSourceRepository(),
+          realClock,
+          new HttpQueryDataSourceService(
+            infos,
+            parameterRepo,
+            infos,
+            interpolation,
+            noPostHook,
+            () => alwaysEnforce.succeed,
+            realClock
+          ),
+          MyDatasource.uuidGen,
+          AlwaysEnabledPluginStatus
+        )
+
+        val (r11, r12) = RunNowTimeout(
+          for {
+            _ <- repos.save(datasource)
+            f1 <- repos.datasources.all().flatMap(_(id).scheduledTask.get).notOptional("error in test: f1 is none")
+            // here, it should be Suspended because it won't run before 5 minutes
+            r11 <- f1.fold(_.status, _ => Unexpected("Datasource scheduler fiber should not be synthetic").fail)
+            _ <- repos.save(datasource.copy(name = DataSourceName("updated name")))
+            _ <- repos.datasources.all().flatMap(_(id).scheduledTask.get).notOptional("error in test: f2 is none")
+            r12 <- f1.fold(_.status, _ => Unexpected("Datasource scheduler fiber should not be synthetic").fail)
+          } yield (r11, r12)
+        ).runTimeout(1 minute)
+
+        (
+          r11 must beLike {
+            case Fiber.Status.Suspended(Fiber.Status.Running(false), _, _, _, _) => ok
+          }
+          ) and (r12 === Fiber.Status.Done)
+      }
+    }
+
     "querying a lot of nodes" should {
 
       // test on 100 nodes. With 30s timeout, even on small hardware it will be ok.
