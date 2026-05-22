@@ -88,9 +88,11 @@ class TestReadOidcConfig extends Specification {
         "CN=AAAA-BBBBB,OU=Groups,OU=_IT,OU=BB-DD,OU=UUU-XXXX-YY,DC=ee,DC=if,DC=ttttt,DC=uuu" -> "administrator"
       )) and (
         regs("someidp").tenants.mapping === Map(
+          "rudder_all"                                                                         -> "*",
           "rudder_TA"                                                                          -> "TA",
           "rudder_TB"                                                                          -> "TB_OVERRIDDEN",
-          "CN=AAAA-BBBBB,OU=Groups,OU=_IT,OU=BB-DD,OU=UUU-XXXX-YY,DC=ee,DC=if,DC=ttttt,DC=uuu" -> "TA"
+          "CN=AAAA-BBBBB,OU=Groups,OU=_IT,OU=BB-DD,OU=UUU-XXXX-YY,DC=ee,DC=if,DC=ttttt,DC=uuu" -> "TA",
+          "CN=AAAA-BBBBB,OU=Groups,OU=_IT,OU=BB-DD,OU=Admin"                                   -> "*"
         )
       )
     }
